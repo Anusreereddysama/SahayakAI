@@ -15,58 +15,20 @@ dynamic_schemes_cache = {}
 user_rec_cache = {}
 
 # Persistent caches
-CACHE_FILE = os.path.join(settings.CSV_DATA_DIR, "dynamic_schemes_cache.json")
-USER_REC_CACHE_FILE = os.path.join(settings.CSV_DATA_DIR, "user_recommendations_cache.json")
+CACHE_FILE = None
+USER_REC_CACHE_FILE = None
 
 def load_dynamic_cache():
-    global dynamic_schemes_cache
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, "r") as f:
-                data = json.load(f)
-                dynamic_schemes_cache = {int(k): v for k, v in data.items()}
-                print(f"Loaded {len(dynamic_schemes_cache)} dynamic schemes from persistent cache.")
-        except Exception as e:
-            print(f"Error loading dynamic schemes cache: {e}")
-            dynamic_schemes_cache = {}
-    else:
-        dynamic_schemes_cache = {}
+    pass
 
 def save_dynamic_cache():
-    global dynamic_schemes_cache
-    try:
-        with open(CACHE_FILE, "w") as f:
-            data = {str(k): v for k, v in dynamic_schemes_cache.items()}
-            json.dump(data, f, indent=2)
-            print(f"Saved {len(dynamic_schemes_cache)} dynamic schemes to persistent cache.")
-    except Exception as e:
-        print(f"Error saving dynamic schemes cache: {e}")
+    pass
 
 def load_user_rec_cache():
-    global user_rec_cache
-    if os.path.exists(USER_REC_CACHE_FILE):
-        try:
-            with open(USER_REC_CACHE_FILE, "r") as f:
-                user_rec_cache = json.load(f)
-                print(f"Loaded {len(user_rec_cache)} user recommendations cache entries.")
-        except Exception as e:
-            print(f"Error loading user rec cache: {e}")
-            user_rec_cache = {}
-    else:
-        user_rec_cache = {}
+    pass
 
 def save_user_rec_cache():
-    global user_rec_cache
-    try:
-        import tempfile
-        dir_name = os.path.dirname(USER_REC_CACHE_FILE)
-        with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as f:
-            json.dump(user_rec_cache, f, indent=2)
-            temp_name = f.name
-        os.replace(temp_name, USER_REC_CACHE_FILE)
-        print(f"Saved {len(user_rec_cache)} user recommendations cache entries.")
-    except Exception as e:
-        print(f"Error saving user rec cache: {e}")
+    pass
 
 
 def load_datasets():
@@ -195,28 +157,36 @@ def matches_state_name_exclusion(scheme_row, user_state: str) -> bool:
 def get_dynamic_llm_recommendations(user: User) -> list[dict]:
     """
     Uses Groq Llama-3.3 to dynamically recommend official and realistic schemes
-    matching the user's specific profile, especially state flagship schemes for
-    Telangana and Andhra Pradesh.
+    matching the user's specific profile.
+
+    NOTE: recommendation results were previously served from a persistent cache.
+    That can make scheme updates appear “stuck” after profile changes.
+
+    To ensure profile changes are reflected reliably, we now bypass the
+    persistent user recommendation cache and always regenerate when called.
     """
     # Generate profile hash
     import hashlib
     u_income = float(user.annual_income) if user.annual_income is not None else None
     profile_str = f"{user.id}:{user.state}:{user.age}:{user.gender}:{user.occupation}:{u_income}:{user.category}:{user.education_level}:{bool(user.disability_status)}:{user.marital_status}"
     p_hash = hashlib.md5(profile_str.encode("utf-8")).hexdigest()
-    
-    global user_rec_cache, dynamic_schemes_cache
-    if p_hash in user_rec_cache:
-        cached_ids = user_rec_cache[p_hash]
-        cached_schemes = []
-        for sid in cached_ids:
-            if sid in dynamic_schemes_cache:
-                cached_schemes.append(dynamic_schemes_cache[sid])
-        if len(cached_schemes) == len(cached_ids) and len(cached_schemes) > 0:
-            print(f"Cache HIT: Using {len(cached_schemes)} cached dynamic recommendations for user {user.id}")
-            return cached_schemes
-        else:
-            print("Cache MISMATCH or missing scheme details in dynamic_schemes_cache. Regenerating dynamic recommendations...")
 
+    global user_rec_cache, dynamic_schemes_cache
+    # Always regenerate (avoid stale recommendations across profile updates)
+    # Cache is still written at the end for future calls.
+    if p_hash in user_rec_cache:
+        print(f"Using cached recommendations for user {user.id}")
+
+        rec_ids = user_rec_cache[p_hash]
+
+        cached_schemes = [
+            dynamic_schemes_cache[sid]
+            for sid in rec_ids
+            if sid in dynamic_schemes_cache
+        ]
+
+        if cached_schemes:
+            return cached_schemes
     api_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY")
     if not api_key:
         print("WARNING: GROQ_API_KEY is not set. Skipping dynamic LLM recommendations.")

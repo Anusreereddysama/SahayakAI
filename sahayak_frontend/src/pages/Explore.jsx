@@ -104,14 +104,7 @@ const EXPLORE_CATEGORIES = [
 ];
 
 // Target Groups chips
-const TARGET_GROUPS = [
-  { key: 'all', value: '' },
-  { key: 'farmer', value: 'Farmer' },
-  { key: 'student', value: 'Student' },
-  { key: 'entrepreneur', value: 'Entrepreneur' },
-  { key: 'unemployed', value: 'Unemployed' },
-  { key: 'retired', value: 'Retired' }
-];
+
 
 export default function Explore() {
   const { t, i18n } = useTranslation();
@@ -125,8 +118,6 @@ export default function Explore() {
   // Local state
   const [searchQuery, setSearchQuery] = useState(queryParam);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [targetGroup, setTargetGroup] = useState('');
-  const [schemeLevel, setSchemeLevel] = useState(''); // 'Central' | 'State' | ''
   const [schemes, setSchemes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedSchemeId, setExpandedSchemeId] = useState(null);
@@ -183,7 +174,6 @@ export default function Explore() {
           page: 1,
           limit: 30,
           category: selectedCategory || undefined,
-          level: schemeLevel || undefined,
           q: searchQuery || undefined,
           lang: i18n.language
         }
@@ -191,18 +181,7 @@ export default function Explore() {
       
       let filtered = response.data;
       
-      // Client-side additional target-group filter matching
-      if (targetGroup) {
-        const tgt = targetGroup.toLowerCase();
-        filtered = filtered.filter(s => {
-          const tags = (s.tags || '').toLowerCase();
-          const name = (s.scheme_name || '').toLowerCase();
-          const details = (s.details || '').toLowerCase();
-          const eligibility = (s.eligibility || '').toLowerCase();
-          return tags.includes(tgt) || name.includes(tgt) || details.includes(tgt) || eligibility.includes(tgt);
-        });
-      }
-
+     
       setSchemes(filtered);
     } catch (err) {
       console.error('Failed to load explore schemes:', err);
@@ -223,7 +202,7 @@ export default function Explore() {
       return;
     }
     fetchExploreSchemes();
-  }, [currentUser, searchQuery, selectedCategory, targetGroup, schemeLevel, i18n.language]);
+  }, [currentUser, searchQuery, selectedCategory, i18n.language]);
 
   // Voice Query Callback integration from Sidebar
   const handleVoiceCommand = (text) => {
@@ -392,60 +371,6 @@ export default function Explore() {
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Filtering row */}
-          <div className="space-y-4 pt-2">
-            {/* Target groups */}
-            <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-2">{t('explore.targetCitizen')}</span>
-              {TARGET_GROUPS.map(grp => {
-                const isActive = targetGroup === grp.value;
-                return (
-                  <button
-                    key={grp.key}
-                    onClick={() => setTargetGroup(grp.value)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                      isActive 
-                        ? 'bg-[#E98A15] text-white border-[#E98A15] font-bold' 
-                        : 'border-slate-300 text-slate-600 hover:border-slate-400 bg-white shadow-sm'
-                    }`}
-                  >
-                    {grp.key === 'all' ? t('explore.allCitizens') : t(`onboarding.options.occupation.${grp.key}`)}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Scheme level */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold font-display text-slate-900">
-                {selectedCategory || searchQuery || targetGroup || schemeLevel 
-                  ? t('explore.filteredResults') 
-                  : t('explore.trendingSchemes')}
-              </h2>
-
-              <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-                {[
-                  { label: t('explore.allSchemes'), value: '' },
-                  { label: t('explore.central'), value: 'Central' },
-                  { label: t('explore.state'), value: 'State' }
-                ].map(level => {
-                  const isActive = schemeLevel === level.value;
-                  return (
-                    <button
-                      key={level.label}
-                      onClick={() => setSchemeLevel(level.value)}
-                      className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
-                        isActive ? 'bg-[#E98A15] text-white font-extrabold shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {level.label}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </div>
 

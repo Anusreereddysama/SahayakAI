@@ -186,7 +186,14 @@ export function AuthProvider({ children }) {
 
   const updateProfile = async (profileData) => {
     const response = await axios.put(`${API_BASE_URL}/profile`, profileData);
+    // Update local state immediately
     setCurrentUser(response.data);
+    // Force a fresh read from backend so recommendation logic uses updated DB values
+    try {
+      await fetchProfile();
+    } catch {
+      // ignore; immediate update already happened
+    }
     return response.data;
   };
 

@@ -143,7 +143,15 @@ export default function Dashboard() {
       navigate('/onboarding');
       return;
     }
-    setSchemeDetails({}); // clear detailed cache on language switch
+
+    // Reset local caches and force a refresh whenever profile changes
+    setSchemeDetails({});
+    setRecPage(0);
+    setRecentPage(0);
+    setActiveTab('eligible');
+    setSearchResults([]);
+    setSearchQuery('');
+
     loadRecommendations();
     if (searchQuery.trim()) {
       handleSearch(searchQuery);
@@ -153,12 +161,16 @@ export default function Dashboard() {
     const saved = localStorage.getItem(`recently_viewed_${currentUser.id}`);
     if (saved) {
       setRecentlyViewed(JSON.parse(saved));
+    } else {
+      setRecentlyViewed([]);
     }
 
     // Load visited count from localStorage
     const savedVisited = localStorage.getItem(`visited_schemes_${currentUser.id}`);
     if (savedVisited) {
       setVisitedCount(JSON.parse(savedVisited).length);
+    } else {
+      setVisitedCount(0);
     }
   }, [currentUser, i18n.language]);
 
